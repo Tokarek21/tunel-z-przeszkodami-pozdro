@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Podniebna Przygoda - Omijaj Przeszkody</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; cursor: none; }
+        canvas { display: block; }
+        #ui {
+            position: absolute; top: 20px; left: 20px; color: white;
+            font-size: 24px; pointer-events: none; text-shadow: 2px 2px 4px #000;
+        }
+        #msg {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: white; text-align: center; display: none; background: rgba(0,0,0,0.8);
+            padding: 20px; border-radius: 10px; border: 2px solid #fff;
+        }
+        button {
+            padding: 10px 20px; font-size: 18px; cursor: pointer; background: #2ecc71;
+            border: none; color: white; border-radius: 5px; margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="ui">Wynik: <span id="score">0</span></div>
+<div id="msg">
+    <h1>Koniec gry!</h1>
+    <p>Twój wynik: <span id="finalScore">0</span></p>
+    <button onclick="resetGame()">Zagraj jeszcze raz</button>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const finalScoreEl = document.getElementById('finalScore');
+const msgEl = document.getElementById('msg');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let score = 0;
+let gameActive = true;
+let speed = 5;
+let obstacles = [];
+let particles = [];
+
+const player = {
+    x: 100,
+    y: canvas.height / 2,
+    size: 30,
+    targetY: canvas.height / 2,
+    color: '#00d2ff'
+};
+
+// Śledzenie myszki
+window.addEventListener('mousemove', (e) => {
+    player.targetY = e.clientY;
+});
+
+class Obstacle {
+    constructor() {
+        this.size = Math.random() * 50 + 20;
+        this.x = canvas.width + this.size;
+        this.y = Math.random() * canvas.height;
+        this.speed = speed + Math.random() * 2;
+        this.color = `hsl(${Math.random() * 360}, 70%, 50%)`;
+    }
+    update() {
+        this.x -= this.speed;
+    }
+    draw() {
+        ctx.fillStyle = this.color;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = this.color;
+        ctx.fillRect(this.x, this.y, this.size, this.size);
+        ctx.shadowBlur = 0;
+    }
+}
+
+function spawnObstacle() {
+    if (gameActive) {
+        obstacles.push(new Obstacle());
+        setTimeout(spawnObstacle, Math.max(300, 1000 - score * 2));
+    }
+}
+
+function resetGame() {
+    score = 0;
+    speed = 5;
+    obstacles = [];
+    gameActive = true;
+    msgEl.style.display = 'none';
+    scoreEl.innerText = score;
+    spawnObstacle();
+    animate();
+}
+
+function animate() {
+    if (!gameActive) return;
+
+    ctx.fillStyle = 'rgba(0, 8, 20, 0.2)'; // Efekt smużenia (motion blur)
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Płynny ruch gracza za myszką (lerp)
+    player.y += (player.targetY - player.y) * 0.1;
+
+    // Rysowanie gracza
+    ctx.fillStyle = player.color;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.size / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Przeszkody
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        obstacles[i].update();
+        obstacles[i].draw();
+
+        // Kolizja
+        if (
+            player.x < obstacles[i].x + obstacles[i].size &&
+            player.x + player.size > obstacles[i].x &&
+            player.y < obstacles[i].y + obstacles[i].size &&
+            player.y + player.size > obstacles[i].y
+        ) {
+            gameActive = false;
+            finalScoreEl.innerText = score;
+            msgEl.style.display = 'block';
+        }
+
+        // Usuwanie poza ekranem i punktacja
+        if (obstacles[i].x + obstacles[i].size < 0) {
+            obstacles.splice(i, 1);
+            score++;
+            scoreEl.innerText = score;
+            speed += 0.05; // Gra staje się coraz trudniejsza
+        }
+    }
+
+    requestAnimationFrame(animate);
+}
+
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
+
+spawnObstacle();
+animate();
+</script>
+</body>
+</html>
